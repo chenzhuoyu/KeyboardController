@@ -82,7 +82,7 @@
 #define KEY_SLASH           KEY(SLASH_AND_QUESTION_MARK)
 #define KEY_SMCL            KEY(SEMICOLON_AND_COLON)
 #define KEY_APOS            KEY(APOSTROPHE_AND_QUOTE)
-#define KEY_NUHM            KEY(NON_US_HASHMARK_AND_TILDE)
+#define KEY_GRAVE           KEY(GRAVE_ACCENT_AND_TILDE)
 
 #define KEY_EQUAL           KEY(EQUAL_AND_PLUS)
 #define KEY_MINUS           KEY(MINUS_AND_UNDERSCORE)
@@ -139,7 +139,7 @@ static const uint8_t PROGMEM MATRIX[15][8] = {
     { KEY_NP_SUB, KEY_NP_MUL, KEY_PGDN  , KEY_PGUP  , KEY_NP3   , KEY_NP_DOT, KEY_NP6   , KEY_NP9    },
     { KEY_LEFT  , KEY_RSHIFT, KEY(END)  , KEY(HOME) , KEY_NP_RET, KEY_UP    , KEY_LSHIFT, KEY_NP_ADD },
     { 0         , KEY_RCTRL , KEY(F5)   , KEY_LCTRL , 0         , 0         , KEY_LOPT  , KEY_PABR   },
-    { 0         , KEY(Z)    , KEY_1     , KEY_NUHM  , KEY(A)    , KEY_ESC   , KEY(TAB)  , KEY(Q)     },
+    { 0         , KEY(Z)    , KEY_1     , KEY_GRAVE , KEY(A)    , KEY_ESC   , KEY(TAB)  , KEY(Q)     },
 };
 
 /** Debouncer and report buffer. **/
