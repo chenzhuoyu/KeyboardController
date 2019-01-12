@@ -207,31 +207,25 @@ static void hw_init(void)
 
 static void kbd_scan(void)
 {
-    uint8_t row;
-
     /* first low bit */
     CLR_DS();
     SET_CK();
     CLR_CK();
     SET_ST();
     CLR_ST();
+
+    /* remainings are all high bits */
     SET_DS();
+    SET_CK();
+    CLR_CK();
+    SET_ST();
+    CLR_ST();
 
     /* read each row */
     for (uint8_t i = 0; i < 15; i++)
     {
-        /* move to next row */
-        SET_CK();
-        CLR_CK();
-        SET_ST();
-        CLR_ST();
-
-        /* 0xff: no key was pressed in this row */
-        if ((row = PIND) == 0xff)
-        {
-            _key_states[i] = 0;
-            continue;
-        }
+        /* read row buffer */
+        uint8_t row = PIND;
 
         /* scan each colum */
         for (uint8_t j = 0; j < 8; j++)
@@ -261,13 +255,13 @@ static void kbd_scan(void)
             row >>= 1;
             _key_timers[i][j] = KEY_DEAD_TIME;
         }
-    }
 
-    /* last unused row */
-    SET_CK();
-    CLR_CK();
-    SET_ST();
-    CLR_ST();
+        /* move to next row */
+        SET_CK();
+        CLR_CK();
+        SET_ST();
+        CLR_ST();
+    }
 }
 
 static void kbd_update(USB_KeyboardReport_Data_t *report)
