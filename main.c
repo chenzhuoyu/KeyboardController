@@ -123,7 +123,7 @@
 #define HID_INTF_INDEX      INTERFACE_ID_Keyboard
 #define HID_BUFFER_SIZE     sizeof(USB_KeyboardReport_Data_t)
 
-/* Keyboard matrix. */
+/** Keyboard matrix. **/
 static const uint8_t PROGMEM MATRIX[15][8] = {
     { KEY(N)    , KEY(M)    , KEY_7     , KEY_6     , KEY(J)    , KEY(H)    , KEY(Y)    , KEY(U)     },
     { KEY_DOWN  , KEY_NUM   , 0         , KEY_DEL   , KEY_NP1   , KEY(SPACE), KEY_NP4   , KEY_NP7    },
