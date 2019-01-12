@@ -298,7 +298,7 @@ static void kbd_update(USB_KeyboardReport_Data_t *report)
                     {
                         /* 6KRO mode */
                         if (n < 6)
-                            report->KeyCode[n] = key;;
+                            report->KeyCode[n] = key;
 
                         /* update key counter */
                         n++;
