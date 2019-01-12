@@ -119,7 +119,7 @@
 #define KEY_LSHIFT          KEY(LEFT_SHIFT)
 #define KEY_RSHIFT          KEY(RIGHT_SHIFT)
 
-#define KEY_DEAD_TIME       10
+#define KEY_DEAD_TIME       20
 #define HID_INTF_INDEX      INTERFACE_ID_Keyboard
 #define HID_BUFFER_SIZE     sizeof(USB_KeyboardReport_Data_t)
 
