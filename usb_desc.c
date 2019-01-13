@@ -2,23 +2,23 @@
 
 static const USB_Descriptor_Device_t PROGMEM _usb_device =
 {
-	.Header = {
+    .Header = {
         .Size = sizeof(USB_Descriptor_Device_t),
         .Type = DTYPE_Device
     },
 
-	.USBSpecification       = VERSION_BCD(1, 1, 0),
-	.Class                  = USB_CSCP_NoDeviceClass,
-	.SubClass               = USB_CSCP_NoDeviceSubclass,
-	.Protocol               = USB_CSCP_NoDeviceProtocol,
-	.Endpoint0Size          = FIXED_CONTROL_ENDPOINT_SIZE,
-	.VendorID               = 0x01a1,               /* =  417 */
-	.ProductID              = 0x07c5,               /* = 1989 */
-	.ReleaseNumber          = VERSION_BCD(0, 0, 1),
-	.ManufacturerStrIndex   = STRING_Vendor,
-	.ProductStrIndex        = STRING_Product,
-	.SerialNumStrIndex      = NO_DESCRIPTOR,
-	.NumberOfConfigurations = FIXED_NUM_CONFIGURATIONS
+    .USBSpecification       = VERSION_BCD(1, 1, 0),
+    .Class                  = USB_CSCP_NoDeviceClass,
+    .SubClass               = USB_CSCP_NoDeviceSubclass,
+    .Protocol               = USB_CSCP_NoDeviceProtocol,
+    .Endpoint0Size          = FIXED_CONTROL_ENDPOINT_SIZE,
+    .VendorID               = 0x01a1,               /* =  417 */
+    .ProductID              = 0x07c5,               /* = 1989 */
+    .ReleaseNumber          = VERSION_BCD(0, 0, 1),
+    .ManufacturerStrIndex   = STRING_Vendor,
+    .ProductStrIndex        = STRING_Product,
+    .SerialNumStrIndex      = NO_DESCRIPTOR,
+    .NumberOfConfigurations = FIXED_NUM_CONFIGURATIONS
 };
 
 static const uint8_t PROGMEM _kbd_boot[] =
@@ -38,9 +38,9 @@ static const uint8_t PROGMEM _kbd_boot[] =
 
 static const uint8_t PROGMEM _kbd_nkro[] =
 {
-	HID_RI_USAGE_PAGE(8, 0x01),             /* Generic Desktop */
-	HID_RI_USAGE(8, 0x06),                  /* Keyboard */
-	HID_RI_COLLECTION(8, 0x01),             /* Application */
+    HID_RI_USAGE_PAGE(8, 0x01),             /* Generic Desktop */
+    HID_RI_USAGE(8, 0x06),                  /* Keyboard */
+    HID_RI_COLLECTION(8, 0x01),             /* Application */
 
     HID_RI_USAGE_PAGE(8, 0x07),             /* Modifier Keys */
     HID_RI_USAGE_MINIMUM(8, 0xE0),          /* Keyboard Left Control */
@@ -80,7 +80,7 @@ static const uint8_t PROGMEM _kbd_nkro[] =
 
 static const usb_desc_t PROGMEM _usb_desc =
 {
-	.header = {
+    .header = {
         .Header = {
             .Size = sizeof(USB_Descriptor_Configuration_Header_t),
             .Type = DTYPE_Configuration
@@ -94,7 +94,7 @@ static const usb_desc_t PROGMEM _usb_desc =
         .MaxPowerConsumption    = USB_CONFIG_POWER_MA(100)
     },
 
-	.kbd_boot_intf = {
+    .kbd_boot_intf = {
         .Header = {
             .Size = sizeof(USB_Descriptor_Interface_t),
             .Type = DTYPE_Interface
@@ -109,7 +109,7 @@ static const usb_desc_t PROGMEM _usb_desc =
         .InterfaceStrIndex      = NO_DESCRIPTOR
     },
 
-	.kbd_boot_hid = {
+    .kbd_boot_hid = {
         .Header = {
             .Size = sizeof(USB_HID_Descriptor_HID_t),
             .Type = HID_DTYPE_HID
@@ -122,7 +122,7 @@ static const usb_desc_t PROGMEM _usb_desc =
         .HIDReportLength        = sizeof(_kbd_boot)
     },
 
-	.kbd_boot_ep = {
+    .kbd_boot_ep = {
         .Header = {
             .Size = sizeof(USB_Descriptor_Endpoint_t),
             .Type = DTYPE_Endpoint
@@ -134,7 +134,7 @@ static const usb_desc_t PROGMEM _usb_desc =
         .PollingIntervalMS      = 0x01
     },
 
-	.kbd_nkro_intf = {
+    .kbd_nkro_intf = {
         .Header = {
             .Size = sizeof(USB_Descriptor_Interface_t),
             .Type = DTYPE_Interface
@@ -149,7 +149,7 @@ static const usb_desc_t PROGMEM _usb_desc =
         .InterfaceStrIndex      = NO_DESCRIPTOR
     },
 
-	.kbd_nkro_hid = {
+    .kbd_nkro_hid = {
         .Header = {
             .Size = sizeof(USB_HID_Descriptor_HID_t),
             .Type = HID_DTYPE_HID
@@ -162,7 +162,7 @@ static const usb_desc_t PROGMEM _usb_desc =
         .HIDReportLength        = sizeof(_kbd_nkro)
     },
 
-	.kbd_nkro_ep = {
+    .kbd_nkro_ep = {
         .Header = {
             .Size = sizeof(USB_Descriptor_Endpoint_t),
             .Type = DTYPE_Endpoint
@@ -181,40 +181,40 @@ static const USB_Descriptor_String_t PROGMEM _str_product = USB_STRING_DESCRIPTO
 
 uint16_t CALLBACK_USB_GetDescriptor(const uint16_t value, const uint16_t index, const void **desc)
 {
-	switch (value >> 8)
-	{
-		case DTYPE_Device:
+    switch (value >> 8)
+    {
+        case DTYPE_Device:
         {
-			*desc = &_usb_device;
-			return sizeof(USB_Descriptor_Device_t);
+            *desc = &_usb_device;
+            return sizeof(USB_Descriptor_Device_t);
         }
 
-		case DTYPE_Configuration:
+        case DTYPE_Configuration:
         {
-			*desc = &_usb_desc;
-			return sizeof(usb_desc_t);
+            *desc = &_usb_desc;
+            return sizeof(usb_desc_t);
         }
 
-		case DTYPE_String:
+        case DTYPE_String:
         {
-			switch (value & 0xff)
-			{
-				case STRING_Lang:
+            switch (value & 0xff)
+            {
+                case STRING_Lang:
                 {
                     *desc = &_str_lang;
-					return pgm_read_byte(&(_str_lang.Header.Size));
+                    return pgm_read_byte(&(_str_lang.Header.Size));
                 }
 
-				case STRING_Vendor:
+                case STRING_Vendor:
                 {
-					*desc = &_str_vendor;
-					return pgm_read_byte(&(_str_vendor.Header.Size));
+                    *desc = &_str_vendor;
+                    return pgm_read_byte(&(_str_vendor.Header.Size));
                 }
 
-				case STRING_Product:
+                case STRING_Product:
                 {
-					*desc = &_str_product;
-					return pgm_read_byte(&(_str_product.Header.Size));
+                    *desc = &_str_product;
+                    return pgm_read_byte(&(_str_product.Header.Size));
                 }
 
                 default:
@@ -222,10 +222,10 @@ uint16_t CALLBACK_USB_GetDescriptor(const uint16_t value, const uint16_t index, 
                     *desc = NULL;
                     return NO_DESCRIPTOR;
                 }
-			}
+            }
         }
 
-		case HID_DTYPE_HID:
+        case HID_DTYPE_HID:
         {
             switch (index)
             {
@@ -249,7 +249,7 @@ uint16_t CALLBACK_USB_GetDescriptor(const uint16_t value, const uint16_t index, 
             }
         }
 
-		case HID_DTYPE_Report:
+        case HID_DTYPE_Report:
         {
             switch (index)
             {

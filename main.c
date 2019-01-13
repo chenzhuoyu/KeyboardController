@@ -357,7 +357,7 @@ static void kbd_scan(void)
 static void kbd_event_out(const uint8_t *data)
 {
     /* Num-Lock */
-	if (*data & HID_KEYBOARD_LED_NUMLOCK)
+    if (*data & HID_KEYBOARD_LED_NUMLOCK)
         _led_state |= LED_BLUE_ON;
     else
         _led_state &= ~LED_BLUE_ON;
@@ -385,18 +385,18 @@ int main(void)
 {
     /* initialize GPIO and USB */
     hw_init();
-	USB_Init();
-	GlobalInterruptEnable();
+    USB_Init();
+    GlobalInterruptEnable();
 
     /* main event loop */
-	for (;;)
-	{
+    for (;;)
+    {
         led_set();
         kbd_scan();
-		HID_Device_USBTask(&_kbd_boot);
-		HID_Device_USBTask(&_kbd_nkro);
-		USB_USBTask();
-	}
+        HID_Device_USBTask(&_kbd_boot);
+        HID_Device_USBTask(&_kbd_nkro);
+        USB_USBTask();
+    }
 }
 
 /***** Event Handlers *****/
@@ -404,23 +404,23 @@ int main(void)
 /** Event handler for the USB device Start Of Frame event. */
 void EVENT_USB_Device_StartOfFrame(void)
 {
-	HID_Device_MillisecondElapsed(&_kbd_boot);
-	HID_Device_MillisecondElapsed(&_kbd_nkro);
+    HID_Device_MillisecondElapsed(&_kbd_boot);
+    HID_Device_MillisecondElapsed(&_kbd_nkro);
 }
 
 /** Event handler for the library USB Control Request reception event. */
 void EVENT_USB_Device_ControlRequest(void)
 {
-	HID_Device_ProcessControlRequest(&_kbd_boot);
-	HID_Device_ProcessControlRequest(&_kbd_nkro);
+    HID_Device_ProcessControlRequest(&_kbd_boot);
+    HID_Device_ProcessControlRequest(&_kbd_nkro);
 }
 
 /** Event handler for the library USB Configuration Changed event. */
 void EVENT_USB_Device_ConfigurationChanged(void)
 {
-	HID_Device_ConfigureEndpoints(&_kbd_boot);
-	HID_Device_ConfigureEndpoints(&_kbd_nkro);
-	USB_Device_EnableSOFEvents();
+    HID_Device_ConfigureEndpoints(&_kbd_boot);
+    HID_Device_ConfigureEndpoints(&_kbd_nkro);
+    USB_Device_EnableSOFEvents();
 }
 
 /** HID class driver callback function for the creation of HID reports to the host.
