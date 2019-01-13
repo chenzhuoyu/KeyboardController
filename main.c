@@ -119,7 +119,10 @@
 #define KEY_LSHIFT          KEY(LEFT_SHIFT)
 #define KEY_RSHIFT          KEY(RIGHT_SHIFT)
 
-#define KEY_DEAD_TIME       20
+#define MAX_COL             8
+#define MAX_ROW             15
+#define MAX_KEY             (MAX_ROW * MAX_COL)
+#define KEY_HOLD_TIME       20
 
 static const uint8_t PROGMEM MATRIX[15][8] = {
     { KEY(N)    , KEY(M)    , KEY_7     , KEY_6     , KEY(J)    , KEY(H)    , KEY(Y)    , KEY(U)     },
@@ -139,11 +142,14 @@ static const uint8_t PROGMEM MATRIX[15][8] = {
     { 0         , KEY(Z)    , KEY_1     , KEY_GRAVE , KEY(A)    , KEY_ESC   , KEY(TAB)  , KEY(Q)     },
 };
 
-static uint8_t _key_states[15] = {};
-static uint8_t _key_timers[15][8] = {};
+static uint8_t _key_states[MAX_ROW] = {};
+static uint8_t _key_timers[MAX_ROW][MAX_COL] = {};
 
-static uint8_t _boot_buffer[BOOT_KEYBOARD_EPSIZE] = {};
-static uint8_t _nkro_buffer[NKRO_KEYBOARD_EPSIZE] = {};
+static nkro_protocol_t _nkro_report = {
+    .mods = 0,
+    .rsvd = 0,
+    .keys = {},
+};
 
 static USB_ClassInfo_HID_Device_t _kbd_boot =
 {
@@ -154,8 +160,8 @@ static USB_ClassInfo_HID_Device_t _kbd_boot =
             .Size       = BOOT_KEYBOARD_EPSIZE,
             .Banks      = 1,
         },
-        .PrevReportINBuffer     = _boot_buffer,
-        .PrevReportINBufferSize = sizeof(_boot_buffer),
+        .PrevReportINBuffer     = NULL,
+        .PrevReportINBufferSize = BOOT_KEYBOARD_EPSIZE,
     }
 };
 
@@ -168,8 +174,8 @@ static USB_ClassInfo_HID_Device_t _kbd_nkro =
             .Size       = NKRO_KEYBOARD_EPSIZE,
             .Banks      = 1,
         },
-        .PrevReportINBuffer     = _nkro_buffer,
-        .PrevReportINBufferSize = sizeof(_nkro_buffer),
+        .PrevReportINBuffer     = NULL,
+        .PrevReportINBufferSize = NKRO_KEYBOARD_EPSIZE,
     }
 };
 
@@ -217,6 +223,10 @@ static void hw_init(void)
 
 static void kbd_scan(void)
 {
+    uint8_t key;
+    uint8_t count = 0;
+    uint8_t report = 0;
+
     /* first low bit */
     CLR_DS();
     SET_CK();
@@ -232,13 +242,10 @@ static void kbd_scan(void)
     CLR_ST();
 
     /* read each row */
-    for (uint8_t i = 0; i < 15; i++)
+    for (uint8_t i = 0; i < MAX_ROW; i++)
     {
-        /* read row buffer */
-        uint8_t row = PIND;
-
-        /* scan each colum */
-        for (uint8_t j = 0; j < 8; j++)
+        /* read row buffer, and scan each colum */
+        for (uint8_t j = 0, row = PIND; j < MAX_COL; j++)
         {
             /* key debouncing */
             if (_key_timers[i][j])
@@ -263,7 +270,8 @@ static void kbd_scan(void)
 
             /* key debouncer */
             row >>= 1;
-            _key_timers[i][j] = KEY_DEAD_TIME;
+            report = 1;
+            _key_timers[i][j] = KEY_HOLD_TIME;
         }
 
         /* move to next row */
@@ -271,6 +279,52 @@ static void kbd_scan(void)
         CLR_CK();
         SET_ST();
         CLR_ST();
+    }
+
+    /* report as needed */
+    if (report)
+    {
+        /* clear report buffer */
+        report = 0;
+        memset(&_nkro_report, 0, sizeof(nkro_protocol_t));
+
+        /* read each row */
+        for (uint8_t i = 0; i < MAX_ROW; i++)
+        {
+            /* read each colum */
+            for (uint8_t j = 0; j < MAX_COL; j++)
+            {
+                /* check for key state */
+                if (_key_states[i] & (1 << j))
+                {
+                    /* check for modifiers */
+                    switch ((key = pgm_read_byte(&(MATRIX[i][j]))))
+                    {
+                        /* modifiers -- left hand side */
+                        case KEY_LCMD   : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_LEFTGUI; break;
+                        case KEY_LOPT   : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_LEFTALT; break;
+                        case KEY_LCTRL  : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_LEFTCTRL; break;
+                        case KEY_LSHIFT : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_LEFTSHIFT; break;
+
+                        /* modifiers -- right hand side */
+                        case KEY_RCMD   : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_RIGHTGUI; break;
+                        case KEY_ROPT   : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_RIGHTALT; break;
+                        case KEY_RCTRL  : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_RIGHTCTRL; break;
+                        case KEY_RSHIFT : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_RIGHTSHIFT; break;
+
+                        /* normal keys */
+                        default:
+                        {
+                            /* NKRO mode */
+                            if (key && (count < NKRO_MAX_KEYS))
+                                _nkro_report.keys[count++] = key;
+
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -289,96 +343,16 @@ static void kbd_event_out(const uint8_t *data)
         RED_OFF();
 }
 
-static void kbd_update_boot(boot_protocol_t *report)
+static uint16_t kbd_update_boot(boot_protocol_t *report)
 {
-    uint8_t n = 0;
-    uint8_t key;
-
-    /* read each row */
-    for (uint8_t i = 0; i < 15; i++)
-    {
-        /* read each colum */
-        for (uint8_t j = 0; j < 8; j++)
-        {
-            /* check for key state */
-            if (_key_states[i] & (1 << j))
-            {
-                /* check for modifiers */
-                switch ((key = pgm_read_byte(&(MATRIX[i][j]))))
-                {
-                    /* modifiers -- left hand side */
-                    case KEY_LCMD   : report->mods |= HID_KEYBOARD_MODIFIER_LEFTGUI; break;
-                    case KEY_LOPT   : report->mods |= HID_KEYBOARD_MODIFIER_LEFTALT; break;
-                    case KEY_LCTRL  : report->mods |= HID_KEYBOARD_MODIFIER_LEFTCTRL; break;
-                    case KEY_LSHIFT : report->mods |= HID_KEYBOARD_MODIFIER_LEFTSHIFT; break;
-
-                    /* modifiers -- right hand side */
-                    case KEY_RCMD   : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTGUI; break;
-                    case KEY_ROPT   : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTALT; break;
-                    case KEY_RCTRL  : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTCTRL; break;
-                    case KEY_RSHIFT : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTSHIFT; break;
-
-                    /* normal keys */
-                    default:
-                    {
-                        /* 6KRO mode */
-                        if (n < BOOT_MAX_KEYS)
-                            report->keys[n] = key;
-
-                        /* update key counter */
-                        n++;
-                        break;
-                    }
-                }
-            }
-        }
-    }
+    memcpy(report, &_nkro_report, sizeof(boot_protocol_t));
+    return sizeof(boot_protocol_t);
 }
 
-static void kbd_update_nkro(nkro_protocol_t *report)
+static uint16_t kbd_update_nkro(nkro_protocol_t *report)
 {
-    uint8_t n = 0;
-    uint8_t key;
-
-    /* read each row */
-    for (uint8_t i = 0; i < 15; i++)
-    {
-        /* read each colum */
-        for (uint8_t j = 0; j < 8; j++)
-        {
-            /* check for key state */
-            if (_key_states[i] & (1 << j))
-            {
-                /* check for modifiers */
-                switch ((key = pgm_read_byte(&(MATRIX[i][j]))))
-                {
-                    /* modifiers -- left hand side */
-                    case KEY_LCMD   : report->mods |= HID_KEYBOARD_MODIFIER_LEFTGUI; break;
-                    case KEY_LOPT   : report->mods |= HID_KEYBOARD_MODIFIER_LEFTALT; break;
-                    case KEY_LCTRL  : report->mods |= HID_KEYBOARD_MODIFIER_LEFTCTRL; break;
-                    case KEY_LSHIFT : report->mods |= HID_KEYBOARD_MODIFIER_LEFTSHIFT; break;
-
-                    /* modifiers -- right hand side */
-                    case KEY_RCMD   : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTGUI; break;
-                    case KEY_ROPT   : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTALT; break;
-                    case KEY_RCTRL  : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTCTRL; break;
-                    case KEY_RSHIFT : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTSHIFT; break;
-
-                    /* normal keys */
-                    default:
-                    {
-                        /* NKRO mode */
-                        if (n < NKRO_MAX_KEYS)
-                            report->keys[n] = key;
-
-                        /* update key counter */
-                        n++;
-                        break;
-                    }
-                }
-            }
-        }
-    }
+    memcpy(report, &_nkro_report, sizeof(nkro_protocol_t));
+    return sizeof(nkro_protocol_t);
 }
 
 int main(void)
@@ -437,25 +411,15 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t *self, uint8
     /* boot protocol */
     if (self == &_kbd_boot)
     {
-        /* update keyboard state */
-        // memset(data, 0, sizeof(boot_protocol_t));
-        // kbd_update_boot((boot_protocol_t *)data);
-
-        /* fixed report size */
-        // *size = sizeof(boot_protocol_t);
-        return false;
+        *size = kbd_update_boot((boot_protocol_t *)data);
+        return true;
     }
 
-    /* boot protocol */
+    /* NKRO protocol */
     else if (self == &_kbd_nkro)
     {
-        /* update keyboard state */
-        memset(data, 0, sizeof(nkro_protocol_t));
-        kbd_update_nkro((nkro_protocol_t *)data);
-
-        /* fixed report size */
-        *size = sizeof(nkro_protocol_t);
-        return false;
+        *size = kbd_update_nkro((nkro_protocol_t *)data);
+        return true;
     }
 
     /* unknown, should not happen */
