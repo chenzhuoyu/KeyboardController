@@ -120,10 +120,7 @@
 #define KEY_RSHIFT          KEY(RIGHT_SHIFT)
 
 #define KEY_DEAD_TIME       20
-#define HID_INTF_INDEX      INTERFACE_ID_Keyboard
-#define HID_BUFFER_SIZE     sizeof(USB_KeyboardReport_Data_t)
 
-/** Keyboard matrix. **/
 static const uint8_t PROGMEM MATRIX[15][8] = {
     { KEY(N)    , KEY(M)    , KEY_7     , KEY_6     , KEY(J)    , KEY(H)    , KEY(Y)    , KEY(U)     },
     { KEY_DOWN  , KEY_NUM   , 0         , KEY_DEL   , KEY_NP1   , KEY(SPACE), KEY_NP4   , KEY_NP7    },
@@ -142,23 +139,37 @@ static const uint8_t PROGMEM MATRIX[15][8] = {
     { 0         , KEY(Z)    , KEY_1     , KEY_GRAVE , KEY(A)    , KEY_ESC   , KEY(TAB)  , KEY(Q)     },
 };
 
-/** Debouncer and report buffer. **/
 static uint8_t _key_states[15] = {};
 static uint8_t _key_timers[15][8] = {};
-static uint8_t _hid_buffer[HID_BUFFER_SIZE] = {};
 
-/** USB HID device object. **/
-static USB_ClassInfo_HID_Device_t _hid_device =
+static uint8_t _boot_buffer[BOOT_KEYBOARD_EPSIZE] = {};
+static uint8_t _nkro_buffer[NKRO_KEYBOARD_EPSIZE] = {};
+
+static USB_ClassInfo_HID_Device_t _kbd_boot =
 {
     .Config = {
-        .InterfaceNumber    = HID_INTF_INDEX,
+        .InterfaceNumber    = INTF_BootKeyboard,
         .ReportINEndpoint   = {
-            .Address    = KEYBOARD_EPADDR,
-            .Size       = KEYBOARD_EPSIZE,
+            .Address    = BOOT_KEYBOARD_EPADDR,
+            .Size       = BOOT_KEYBOARD_EPSIZE,
             .Banks      = 1,
         },
-        .PrevReportINBuffer     = _hid_buffer,
-        .PrevReportINBufferSize = HID_BUFFER_SIZE,
+        .PrevReportINBuffer     = _boot_buffer,
+        .PrevReportINBufferSize = sizeof(_boot_buffer),
+    }
+};
+
+static USB_ClassInfo_HID_Device_t _kbd_nkro =
+{
+    .Config = {
+        .InterfaceNumber    = INTF_NKROKeyboard,
+        .ReportINEndpoint   = {
+            .Address    = NKRO_KEYBOARD_EPADDR,
+            .Size       = NKRO_KEYBOARD_EPSIZE,
+            .Banks      = 1,
+        },
+        .PrevReportINBuffer     = _nkro_buffer,
+        .PrevReportINBufferSize = sizeof(_nkro_buffer),
     }
 };
 
@@ -203,7 +214,6 @@ static void hw_init(void)
     DDRD = 0;
     PORTD = 0xff;
 }
-
 
 static void kbd_scan(void)
 {
@@ -264,7 +274,22 @@ static void kbd_scan(void)
     }
 }
 
-static void kbd_update(USB_KeyboardReport_Data_t *report)
+static void kbd_event_out(const uint8_t *data)
+{
+    /* Num-Lock */
+	if (*data & HID_KEYBOARD_LED_NUMLOCK)
+        BLUE_ON();
+    else
+        BLUE_OFF();
+
+    /* Caps-Lock */
+    if (*data & HID_KEYBOARD_LED_CAPSLOCK)
+        RED_ON();
+    else
+        RED_OFF();
+}
+
+static void kbd_update_boot(boot_protocol_t *report)
 {
     uint8_t n = 0;
     uint8_t key;
@@ -282,23 +307,23 @@ static void kbd_update(USB_KeyboardReport_Data_t *report)
                 switch ((key = pgm_read_byte(&(MATRIX[i][j]))))
                 {
                     /* modifiers -- left hand side */
-                    case KEY_LCMD   : report->Modifier |= HID_KEYBOARD_MODIFIER_LEFTGUI; break;
-                    case KEY_LOPT   : report->Modifier |= HID_KEYBOARD_MODIFIER_LEFTALT; break;
-                    case KEY_LCTRL  : report->Modifier |= HID_KEYBOARD_MODIFIER_LEFTCTRL; break;
-                    case KEY_LSHIFT : report->Modifier |= HID_KEYBOARD_MODIFIER_LEFTSHIFT; break;
+                    case KEY_LCMD   : report->mods |= HID_KEYBOARD_MODIFIER_LEFTGUI; break;
+                    case KEY_LOPT   : report->mods |= HID_KEYBOARD_MODIFIER_LEFTALT; break;
+                    case KEY_LCTRL  : report->mods |= HID_KEYBOARD_MODIFIER_LEFTCTRL; break;
+                    case KEY_LSHIFT : report->mods |= HID_KEYBOARD_MODIFIER_LEFTSHIFT; break;
 
                     /* modifiers -- right hand side */
-                    case KEY_RCMD   : report->Modifier |= HID_KEYBOARD_MODIFIER_RIGHTGUI; break;
-                    case KEY_ROPT   : report->Modifier |= HID_KEYBOARD_MODIFIER_RIGHTALT; break;
-                    case KEY_RCTRL  : report->Modifier |= HID_KEYBOARD_MODIFIER_RIGHTCTRL; break;
-                    case KEY_RSHIFT : report->Modifier |= HID_KEYBOARD_MODIFIER_RIGHTSHIFT; break;
+                    case KEY_RCMD   : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTGUI; break;
+                    case KEY_ROPT   : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTALT; break;
+                    case KEY_RCTRL  : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTCTRL; break;
+                    case KEY_RSHIFT : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTSHIFT; break;
 
                     /* normal keys */
                     default:
                     {
                         /* 6KRO mode */
-                        if (n < 6)
-                            report->KeyCode[n] = key;
+                        if (n < BOOT_MAX_KEYS)
+                            report->keys[n] = key;
 
                         /* update key counter */
                         n++;
@@ -310,19 +335,50 @@ static void kbd_update(USB_KeyboardReport_Data_t *report)
     }
 }
 
-static void kbd_event_out(const uint8_t *data)
+static void kbd_update_nkro(nkro_protocol_t *report)
 {
-    /* Num-Lock */
-	if (*data & HID_KEYBOARD_LED_NUMLOCK)
-        BLUE_ON();
-    else
-        BLUE_OFF();
+    uint8_t n = 0;
+    uint8_t key;
 
-    /* Caps-Lock */
-    if (*data & HID_KEYBOARD_LED_CAPSLOCK)
-        RED_ON();
-    else
-        RED_OFF();
+    /* read each row */
+    for (uint8_t i = 0; i < 15; i++)
+    {
+        /* read each colum */
+        for (uint8_t j = 0; j < 8; j++)
+        {
+            /* check for key state */
+            if (_key_states[i] & (1 << j))
+            {
+                /* check for modifiers */
+                switch ((key = pgm_read_byte(&(MATRIX[i][j]))))
+                {
+                    /* modifiers -- left hand side */
+                    case KEY_LCMD   : report->mods |= HID_KEYBOARD_MODIFIER_LEFTGUI; break;
+                    case KEY_LOPT   : report->mods |= HID_KEYBOARD_MODIFIER_LEFTALT; break;
+                    case KEY_LCTRL  : report->mods |= HID_KEYBOARD_MODIFIER_LEFTCTRL; break;
+                    case KEY_LSHIFT : report->mods |= HID_KEYBOARD_MODIFIER_LEFTSHIFT; break;
+
+                    /* modifiers -- right hand side */
+                    case KEY_RCMD   : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTGUI; break;
+                    case KEY_ROPT   : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTALT; break;
+                    case KEY_RCTRL  : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTCTRL; break;
+                    case KEY_RSHIFT : report->mods |= HID_KEYBOARD_MODIFIER_RIGHTSHIFT; break;
+
+                    /* normal keys */
+                    default:
+                    {
+                        /* NKRO mode */
+                        if (n < NKRO_MAX_KEYS)
+                            report->keys[n] = key;
+
+                        /* update key counter */
+                        n++;
+                        break;
+                    }
+                }
+            }
+        }
+    }
 }
 
 int main(void)
@@ -336,7 +392,8 @@ int main(void)
 	for (;;)
 	{
         kbd_scan();
-		HID_Device_USBTask(&_hid_device);
+		HID_Device_USBTask(&_kbd_boot);
+		HID_Device_USBTask(&_kbd_nkro);
 		USB_USBTask();
 	}
 }
@@ -346,21 +403,22 @@ int main(void)
 /** Event handler for the USB device Start Of Frame event. */
 void EVENT_USB_Device_StartOfFrame(void)
 {
-    /* nothing interesting, forward to LUFA */
-	HID_Device_MillisecondElapsed(&_hid_device);
+	HID_Device_MillisecondElapsed(&_kbd_boot);
+	HID_Device_MillisecondElapsed(&_kbd_nkro);
 }
 
 /** Event handler for the library USB Control Request reception event. */
 void EVENT_USB_Device_ControlRequest(void)
 {
-    /* nothing interesting, forward to LUFA */
-	HID_Device_ProcessControlRequest(&_hid_device);
+	HID_Device_ProcessControlRequest(&_kbd_boot);
+	HID_Device_ProcessControlRequest(&_kbd_nkro);
 }
 
 /** Event handler for the library USB Configuration Changed event. */
 void EVENT_USB_Device_ConfigurationChanged(void)
 {
-	HID_Device_ConfigureEndpoints(&_hid_device);
+	HID_Device_ConfigureEndpoints(&_kbd_boot);
+	HID_Device_ConfigureEndpoints(&_kbd_nkro);
 	USB_Device_EnableSOFEvents();
 }
 
@@ -376,13 +434,36 @@ void EVENT_USB_Device_ConfigurationChanged(void)
  */
 bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t *self, uint8_t *id, uint8_t type, void *data, uint16_t *size)
 {
-    /* update keyboard state */
-    memset(data, 0, sizeof(USB_KeyboardReport_Data_t));
-    kbd_update((USB_KeyboardReport_Data_t *)data);
+    /* boot protocol */
+    if (self == &_kbd_boot)
+    {
+        /* update keyboard state */
+        // memset(data, 0, sizeof(boot_protocol_t));
+        // kbd_update_boot((boot_protocol_t *)data);
 
-    /* fixed report size */
-	*size = sizeof(USB_KeyboardReport_Data_t);
-	return false;
+        /* fixed report size */
+        // *size = sizeof(boot_protocol_t);
+        return false;
+    }
+
+    /* boot protocol */
+    else if (self == &_kbd_nkro)
+    {
+        /* update keyboard state */
+        memset(data, 0, sizeof(nkro_protocol_t));
+        kbd_update_nkro((nkro_protocol_t *)data);
+
+        /* fixed report size */
+        *size = sizeof(nkro_protocol_t);
+        return false;
+    }
+
+    /* unknown, should not happen */
+    else
+    {
+        *size = 0;
+        return false;
+    }
 }
 
 /** HID class driver callback function for the processing of HID reports from the host.
@@ -395,7 +476,8 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t *self, uint8
  */
 void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t *self, uint8_t id, uint8_t type, const void *data, uint16_t size)
 {
-    /* only care about this event */
-    if (type == HID_REPORT_ITEM_Out)
-        kbd_event_out((const uint8_t *)data);
+    /* only care about "Out" event */
+    if (size > 0)
+        if (type == HID_REPORT_ITEM_Out)
+            kbd_event_out((const uint8_t *)data);
 }

@@ -1,92 +1,55 @@
-/*
-             LUFA Library
-     Copyright (C) Dean Camera, 2018.
+#ifndef USB_DESC_H
+#define USB_DESC_H
 
-  dean [at] fourwalledcubicle [dot] com
-           www.lufa-lib.org
-*/
-
-/*
-  Copyright 2018  Dean Camera (dean [at] fourwalledcubicle [dot] com)
-
-  Permission to use, copy, modify, distribute, and sell this
-  software and its documentation for any purpose is hereby granted
-  without fee, provided that the above copyright notice appear in
-  all copies and that both that the copyright notice and this
-  permission notice and warranty disclaimer appear in supporting
-  documentation, and that the name of the author not be used in
-  advertising or publicity pertaining to distribution of the
-  software without specific, written prior permission.
-
-  The author disclaims all warranties with regard to this
-  software, including all implied warranties of merchantability
-  and fitness.  In no event shall the author be liable for any
-  special, indirect or consequential damages or any damages
-  whatsoever resulting from loss of use, data or profits, whether
-  in an action of contract, negligence or other tortious action,
-  arising out of or in connection with the use or performance of
-  this software.
-*/
-
-/** \file
- *
- *  Header file for Descriptors.c.
- */
-
-#ifndef _DESCRIPTORS_H_
-#define _DESCRIPTORS_H_
-
-/* Includes: */
 #include <avr/pgmspace.h>
 #include <LUFA/Drivers/USB/USB.h>
 
-/* Type Defines: */
-/** Type define for the device configuration descriptor structure. This must be defined in the
- *  application code, as the configuration descriptor contains several sub-descriptors which
- *  vary between devices, and which describe the device's usage to the host.
- */
-typedef struct
+typedef struct _usb_desc_t
 {
-    USB_Descriptor_Configuration_Header_t Config;
+    USB_Descriptor_Configuration_Header_t header;
+    USB_Descriptor_Interface_t            kbd_boot_intf;
+    USB_HID_Descriptor_HID_t              kbd_boot_hid;
+    USB_Descriptor_Endpoint_t             kbd_boot_ep;
+    USB_Descriptor_Interface_t            kbd_nkro_intf;
+    USB_HID_Descriptor_HID_t              kbd_nkro_hid;
+    USB_Descriptor_Endpoint_t             kbd_nkro_ep;
+} usb_desc_t;
 
-    // Keyboard HID Interface
-    USB_Descriptor_Interface_t            HID_Interface;
-    USB_HID_Descriptor_HID_t              HID_KeyboardHID;
-    USB_Descriptor_Endpoint_t             HID_ReportINEndpoint;
-} USB_Descriptor_Configuration_t;
-
-/** Enum for the device interface descriptor IDs within the device. Each interface descriptor
- *  should have a unique ID index associated with it, which can be used to refer to the
- *  interface from other descriptors.
- */
-enum InterfaceDescriptors_t
+typedef enum _intf_desc_t
 {
-    INTERFACE_ID_Keyboard = 0, /**< Keyboard interface descriptor ID */
-};
+    INTF_BootKeyboard   = 0,
+    INTF_NKROKeyboard   = 1,
+} intf_desc_t;
 
-/** Enum for the device string descriptor IDs within the device. Each string descriptor should
- *  have a unique ID index associated with it, which can be used to refer to the string from
- *  other descriptors.
- */
-enum StringDescriptors_t
+typedef enum _string_desc_t
 {
-    STRING_ID_Language     = 0, /**< Supported Languages string descriptor ID (must be zero) */
-    STRING_ID_Manufacturer = 1, /**< Manufacturer string ID */
-    STRING_ID_Product      = 2, /**< Product string ID */
-};
+    STRING_Lang     = 0,
+    STRING_Vendor   = 1,
+    STRING_Product  = 2,
+} string_desc_t;
 
-/* Macros: */
-/** Endpoint address of the Keyboard HID reporting IN endpoint. */
-#define KEYBOARD_EPADDR              (ENDPOINT_DIR_IN | 1)
+#define BOOT_MAX_KEYS           6
+#define NKRO_MAX_KEYS           62
 
-/** Size in bytes of the Keyboard HID reporting IN endpoint. */
-#define KEYBOARD_EPSIZE              8
+typedef struct _boot_protocol_t
+{
+    uint8_t mods;
+    uint8_t rsvd;
+    uint8_t keys[BOOT_MAX_KEYS];
+} ATTR_PACKED boot_protocol_t;
 
-/* Function Prototypes: */
-uint16_t CALLBACK_USB_GetDescriptor(const uint16_t wValue,
-                                    const uint16_t wIndex,
-                                    const void** const DescriptorAddress)
-                                    ATTR_WARN_UNUSED_RESULT ATTR_NON_NULL_PTR_ARG(3);
+typedef struct _nkro_protocol_t
+{
+    uint8_t mods;
+    uint8_t rsvd;
+    uint8_t keys[NKRO_MAX_KEYS];
+} ATTR_PACKED nkro_protocol_t;
+
+#define BOOT_KEYBOARD_EPADDR    (ENDPOINT_DIR_IN | 1)
+#define BOOT_KEYBOARD_EPSIZE    (sizeof(boot_protocol_t))
+
+#define NKRO_KEYBOARD_EPADDR    (ENDPOINT_DIR_IN | 2)
+#define NKRO_KEYBOARD_EPSIZE    (sizeof(nkro_protocol_t))
 
 #endif
 
