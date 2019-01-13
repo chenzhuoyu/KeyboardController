@@ -122,6 +122,9 @@
 #define MAX_COL             8
 #define MAX_ROW             15
 #define MAX_KEY             (MAX_ROW * MAX_COL)
+
+#define LED_RED_ON          1
+#define LED_BLUE_ON         2
 #define KEY_HOLD_TIME       20
 
 static const uint8_t PROGMEM MATRIX[15][8] = {
@@ -141,6 +144,10 @@ static const uint8_t PROGMEM MATRIX[15][8] = {
     { 0         , KEY_RCTRL , KEY(F5)   , KEY_LCTRL , 0         , 0         , KEY_LOPT  , KEY_PABR   },
     { 0         , KEY(Z)    , KEY_1     , KEY_GRAVE , KEY(A)    , KEY_ESC   , KEY(TAB)  , KEY(Q)     },
 };
+
+static uint8_t _led_state = 0;
+static uint8_t _led_istate = 0;
+static uint8_t _led_override = 0;
 
 static uint8_t _key_states[MAX_ROW] = {};
 static uint8_t _key_timers[MAX_ROW][MAX_COL] = {};
@@ -219,6 +226,25 @@ static void hw_init(void)
     /* all inputs for PORTD */
     DDRD = 0;
     PORTD = 0xff;
+}
+
+static void led_set(void)
+{
+    /* allow controller to override LED */
+    uint8_t state = _led_state;
+    uint8_t istate = _led_override ? _led_istate : state;
+
+    /* set red LED */
+    if (istate & LED_RED_ON)
+        RED_ON();
+    else
+        RED_OFF();
+
+    /* set blue LED */
+    if (istate & LED_BLUE_ON)
+        BLUE_ON();
+    else
+        BLUE_OFF();
 }
 
 static void kbd_scan(void)
@@ -332,15 +358,15 @@ static void kbd_event_out(const uint8_t *data)
 {
     /* Num-Lock */
 	if (*data & HID_KEYBOARD_LED_NUMLOCK)
-        BLUE_ON();
+        _led_state |= LED_BLUE_ON;
     else
-        BLUE_OFF();
+        _led_state &= ~LED_BLUE_ON;
 
     /* Caps-Lock */
     if (*data & HID_KEYBOARD_LED_CAPSLOCK)
-        RED_ON();
+        _led_state |= LED_RED_ON;
     else
-        RED_OFF();
+        _led_state &= ~LED_RED_ON;
 }
 
 static uint16_t kbd_update_boot(boot_protocol_t *report)
@@ -365,6 +391,7 @@ int main(void)
     /* main event loop */
 	for (;;)
 	{
+        led_set();
         kbd_scan();
 		HID_Device_USBTask(&_kbd_boot);
 		HID_Device_USBTask(&_kbd_nkro);
