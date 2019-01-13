@@ -12,8 +12,8 @@ static const USB_Descriptor_Device_t PROGMEM _usb_device =
     .SubClass               = USB_CSCP_NoDeviceSubclass,
     .Protocol               = USB_CSCP_NoDeviceProtocol,
     .Endpoint0Size          = FIXED_CONTROL_ENDPOINT_SIZE,
-    .VendorID               = 0x01a1,               /* =  417 */
-    .ProductID              = 0x07c5,               /* = 1989 */
+    .VendorID               = 0x01a1,       /* = 0417 */
+    .ProductID              = 0x07c5,       /* = 1989 */
     .ReleaseNumber          = VERSION_BCD(0, 0, 1),
     .ManufacturerStrIndex   = STRING_Vendor,
     .ProductStrIndex        = STRING_Product,
