@@ -8,7 +8,7 @@ F_USB	= $(F_CPU)
 
 AVRDUDE_LOCK		= 0x3F
 AVRDUDE_LFUSE		= 0xFE
-AVRDUDE_HFUSE		= 0xD9
+AVRDUDE_HFUSE		= 0xD8
 AVRDUDE_EFUSE		= 0xFF
 AVRDUDE_PROGRAMMER	= usbasp
 
@@ -34,3 +34,6 @@ include $(DMBS_PATH)/hid.mk
 include $(DMBS_PATH)/avrdude.mk
 
 all:
+
+dfu_flash: hex
+	python ../KeyboardBootloader/bin/dfu_flash.py flash $(TARGET).hex

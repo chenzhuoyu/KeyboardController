@@ -27,7 +27,7 @@
         {
             "label": "Build & Flash",
             "type": "shell",
-            "command": "make avrdude-all-ee",
+            "command": "make dfu_flash",
             "group": {
                 "kind": "build",
                 "isDefault": true

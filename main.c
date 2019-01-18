@@ -2,13 +2,8 @@
 #include <stdbool.h>
 
 #include <avr/io.h>
-#include <avr/wdt.h>
-#include <avr/power.h>
 #include <avr/pgmspace.h>
-#include <avr/interrupt.h>
-
 #include <LUFA/Drivers/USB/USB.h>
-#include <LUFA/Platform/Platform.h>
 
 #include "usb_desc.h"
 
