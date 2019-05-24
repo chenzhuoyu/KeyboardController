@@ -5,7 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/",
                 "${workspaceFolder}/lufa/",
-                "/usr/local/Cellar/avr-gcc/8.2.0/avr/include/"
+                "/usr/local/Cellar/avr-gcc/8.3.0/avr/include/"
             ],
             "defines": [
                 "F_CPU=16000000UL",

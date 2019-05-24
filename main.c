@@ -120,7 +120,7 @@
 
 #define LED_RED_ON          1
 #define LED_BLUE_ON         2
-#define KEY_HOLD_TIME       20
+#define KEY_HOLD_TIME       50
 
 static const uint8_t PROGMEM MATRIX[15][8] = {
     { KEY(N)    , KEY(M)    , KEY_7     , KEY_6     , KEY(J)    , KEY(H)    , KEY(Y)    , KEY(U)     },
