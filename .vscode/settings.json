@@ -6,6 +6,8 @@
         "usb_desc.h": "c",
         "string.h": "c",
         "pgmspace.h": "c",
-        "usb.h": "c"
+        "usb.h": "c",
+        "*.ttml": "xml",
+        "*.ttss": "css"
     }
 }

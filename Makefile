@@ -36,4 +36,4 @@ include $(DMBS_PATH)/avrdude.mk
 all:
 
 dfu_flash: hex
-	python ../KeyboardBootloader/bin/dfu_flash.py flash $(TARGET).hex
+	python3 ../KeyboardBootloader/bin/dfu_flash.py flash $(TARGET).hex

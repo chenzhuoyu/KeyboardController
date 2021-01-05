@@ -11,8 +11,8 @@
 #define SW_DP2              (1 << PC2)
 #define SW_DP3              (1 << PC7)
 #define SW_DP4              (1 << PB4)
-
 #define SW_BTN              (1 << PB5)
+
 #define LED_RED             (1 << PB6)
 #define LED_BLUE            (1 << PB7)
 
@@ -140,11 +140,11 @@ static const uint8_t PROGMEM MATRIX[15][8] = {
     { 0         , KEY(Z)    , KEY_1     , KEY_GRAVE , KEY(A)    , KEY_ESC   , KEY(TAB)  , KEY(Q)     },
 };
 
-static uint8_t _led_state = 0;
-static uint8_t _led_istate = 0;
+static uint8_t _led_state    = 0;
+static uint8_t _led_istate   = 0;
 static uint8_t _led_override = 0;
 
-static uint8_t _key_states[MAX_ROW] = {};
+static uint8_t _key_states[MAX_ROW]          = {};
 static uint8_t _key_timers[MAX_ROW][MAX_COL] = {};
 
 static nkro_protocol_t _nkro_report = {
@@ -153,37 +153,33 @@ static nkro_protocol_t _nkro_report = {
     .keys = {},
 };
 
-static USB_ClassInfo_HID_Device_t _kbd_boot =
-{
+static USB_ClassInfo_HID_Device_t _kbd_boot = {
     .Config = {
-        .InterfaceNumber    = INTF_BootKeyboard,
-        .ReportINEndpoint   = {
-            .Address    = BOOT_KEYBOARD_EPADDR,
-            .Size       = BOOT_KEYBOARD_EPSIZE,
-            .Banks      = 1,
+        .InterfaceNumber  = INTF_BootKeyboard,
+        .ReportINEndpoint = {
+            .Address = BOOT_KEYBOARD_EPADDR,
+            .Size    = BOOT_KEYBOARD_EPSIZE,
+            .Banks   = 1,
         },
         .PrevReportINBuffer     = NULL,
         .PrevReportINBufferSize = BOOT_KEYBOARD_EPSIZE,
     }
 };
 
-static USB_ClassInfo_HID_Device_t _kbd_nkro =
-{
+static USB_ClassInfo_HID_Device_t _kbd_nkro = {
     .Config = {
-        .InterfaceNumber    = INTF_NKROKeyboard,
-        .ReportINEndpoint   = {
-            .Address    = NKRO_KEYBOARD_EPADDR,
-            .Size       = NKRO_KEYBOARD_EPSIZE,
-            .Banks      = 1,
+        .InterfaceNumber  = INTF_NKROKeyboard,
+        .ReportINEndpoint = {
+            .Address = NKRO_KEYBOARD_EPADDR,
+            .Size    = NKRO_KEYBOARD_EPSIZE,
+            .Banks   = 1,
         },
         .PrevReportINBuffer     = NULL,
         .PrevReportINBufferSize = NKRO_KEYBOARD_EPSIZE,
     }
 };
 
-static void hw_init(void)
-{
-    /* DIP switches */
+static void hw_init(void) {
     DDRB &= ~SW_DP1;
     DDRC &= ~SW_DP2;
     DDRC &= ~SW_DP3;
@@ -208,8 +204,7 @@ static void hw_init(void)
     CLR_ST();
 
     /* set all 16 bits */
-    for (int i = 0; i < 16; i++)
-    {
+    for (int i = 0; i < 16; i++) {
         SET_CK();
         CLR_CK();
     }
@@ -219,33 +214,32 @@ static void hw_init(void)
     CLR_ST();
 
     /* all inputs for PORTD */
-    DDRD = 0;
+    DDRD  = 0;
     PORTD = 0xff;
 }
 
-static void led_set(void)
-{
-    /* allow controller to override LED */
-    uint8_t state = _led_state;
+static void led_set(void) {
+    uint8_t state  = _led_state;
     uint8_t istate = _led_override ? _led_istate : state;
 
     /* set red LED */
-    if (istate & LED_RED_ON)
+    if (istate & LED_RED_ON) {
         RED_ON();
-    else
+    } else {
         RED_OFF();
+    }
 
     /* set blue LED */
-    if (istate & LED_BLUE_ON)
+    if (istate & LED_BLUE_ON) {
         BLUE_ON();
-    else
+    } else {
         BLUE_OFF();
+    }
 }
 
-static void kbd_scan(void)
-{
+static void kbd_scan(void) {
     uint8_t key;
-    uint8_t count = 0;
+    uint8_t count  = 0;
     uint8_t report = 0;
 
     /* first low bit */
@@ -262,32 +256,27 @@ static void kbd_scan(void)
     SET_ST();
     CLR_ST();
 
-    /* read each row */
-    for (uint8_t i = 0; i < MAX_ROW; i++)
-    {
-        /* read row buffer, and scan each colum */
-        for (uint8_t j = 0, row = PIND; j < MAX_COL; j++)
-        {
-            /* key debouncing */
-            if (_key_timers[i][j])
-            {
+    /* read each row and column */
+    for (uint8_t i = 0; i < MAX_ROW; i++) {
+        for (uint8_t j = 0, row = PIND; j < MAX_COL; j++) {
+            if (_key_timers[i][j]) {
                 row >>= 1;
                 _key_timers[i][j]--;
                 continue;
             }
 
             /* only trigger on state changes */
-            if (!(row & 1) != !(_key_states[i] & (1 << j)))
-            {
+            if (!(row & 1) != !(_key_states[i] & (1 << j))) {
                 row >>= 1;
                 continue;
             }
 
             /* update key status */
-            if (!(row & 1))
+            if (!(row & 1)) {
                 _key_states[i] |= (1 << j);
-            else
+            } else {
                 _key_states[i] &= ~(1 << j);
+            }
 
             /* key debouncer */
             row >>= 1;
@@ -303,45 +292,31 @@ static void kbd_scan(void)
     }
 
     /* report as needed */
-    if (report)
-    {
-        /* clear report buffer */
+    if (report) {
         report = 0;
         memset(&_nkro_report, 0, sizeof(nkro_protocol_t));
 
-        /* read each row */
-        for (uint8_t i = 0; i < MAX_ROW; i++)
-        {
-            /* read each colum */
-            for (uint8_t j = 0; j < MAX_COL; j++)
-            {
-                /* check for key state */
-                if (_key_states[i] & (1 << j))
-                {
-                    /* check for modifiers */
-                    switch ((key = pgm_read_byte(&(MATRIX[i][j]))))
-                    {
+        /* read each row and column */
+        for (uint8_t i = 0; i < MAX_ROW; i++) {
+            for (uint8_t j = 0; j < MAX_COL; j++) {
+                if (_key_states[i] & (1 << j)) {
+                    switch ((key = pgm_read_byte(&(MATRIX[i][j])))) {
+                        default: {
+                            if (key && (count < NKRO_MAX_KEYS)) _nkro_report.keys[count++] = key;
+                            break;
+                        }
+
                         /* modifiers -- left hand side */
-                        case KEY_LCMD   : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_LEFTGUI; break;
-                        case KEY_LOPT   : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_LEFTALT; break;
-                        case KEY_LCTRL  : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_LEFTCTRL; break;
+                        case KEY_LCMD   : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_LEFTGUI;   break;
+                        case KEY_LOPT   : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_LEFTALT;   break;
+                        case KEY_LCTRL  : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_LEFTCTRL;  break;
                         case KEY_LSHIFT : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_LEFTSHIFT; break;
 
                         /* modifiers -- right hand side */
-                        case KEY_RCMD   : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_RIGHTGUI; break;
-                        case KEY_ROPT   : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_RIGHTALT; break;
-                        case KEY_RCTRL  : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_RIGHTCTRL; break;
+                        case KEY_RCMD   : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_RIGHTGUI;   break;
+                        case KEY_ROPT   : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_RIGHTALT;   break;
+                        case KEY_RCTRL  : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_RIGHTCTRL;  break;
                         case KEY_RSHIFT : _nkro_report.mods |= HID_KEYBOARD_MODIFIER_RIGHTSHIFT; break;
-
-                        /* normal keys */
-                        default:
-                        {
-                            /* NKRO mode */
-                            if (key && (count < NKRO_MAX_KEYS))
-                                _nkro_report.keys[count++] = key;
-
-                            break;
-                        }
                     }
                 }
             }
@@ -349,43 +324,28 @@ static void kbd_scan(void)
     }
 }
 
-static void kbd_event_out(const uint8_t *data)
-{
-    /* Num-Lock */
-    if (*data & HID_KEYBOARD_LED_NUMLOCK)
-        _led_state |= LED_BLUE_ON;
-    else
-        _led_state &= ~LED_BLUE_ON;
-
-    /* Caps-Lock */
-    if (*data & HID_KEYBOARD_LED_CAPSLOCK)
-        _led_state |= LED_RED_ON;
-    else
-        _led_state &= ~LED_RED_ON;
+static void kbd_event_out(const uint8_t *data) {
+    if (*data & HID_KEYBOARD_LED_NUMLOCK)  { _led_state |= LED_BLUE_ON; } else { _led_state &= ~LED_BLUE_ON; }
+    if (*data & HID_KEYBOARD_LED_CAPSLOCK) { _led_state |= LED_RED_ON;  } else { _led_state &= ~LED_RED_ON;  }
 }
 
-static uint16_t kbd_update_boot(boot_protocol_t *report)
-{
+static uint16_t kbd_update_boot(boot_protocol_t *report) {
     memcpy(report, &_nkro_report, sizeof(boot_protocol_t));
     return sizeof(boot_protocol_t);
 }
 
-static uint16_t kbd_update_nkro(nkro_protocol_t *report)
-{
+static uint16_t kbd_update_nkro(nkro_protocol_t *report) {
     memcpy(report, &_nkro_report, sizeof(nkro_protocol_t));
     return sizeof(nkro_protocol_t);
 }
 
-int main(void)
-{
-    /* initialize GPIO and USB */
+int main(void) {
     hw_init();
     USB_Init();
     GlobalInterruptEnable();
 
     /* main event loop */
-    for (;;)
-    {
+    for (;;) {
         led_set();
         kbd_scan();
         HID_Device_USBTask(&_kbd_boot);
@@ -397,22 +357,19 @@ int main(void)
 /***** Event Handlers *****/
 
 /** Event handler for the USB device Start Of Frame event. */
-void EVENT_USB_Device_StartOfFrame(void)
-{
+void EVENT_USB_Device_StartOfFrame(void) {
     HID_Device_MillisecondElapsed(&_kbd_boot);
     HID_Device_MillisecondElapsed(&_kbd_nkro);
 }
 
 /** Event handler for the library USB Control Request reception event. */
-void EVENT_USB_Device_ControlRequest(void)
-{
+void EVENT_USB_Device_ControlRequest(void) {
     HID_Device_ProcessControlRequest(&_kbd_boot);
     HID_Device_ProcessControlRequest(&_kbd_nkro);
 }
 
 /** Event handler for the library USB Configuration Changed event. */
-void EVENT_USB_Device_ConfigurationChanged(void)
-{
+void EVENT_USB_Device_ConfigurationChanged(void) {
     HID_Device_ConfigureEndpoints(&_kbd_boot);
     HID_Device_ConfigureEndpoints(&_kbd_nkro);
     USB_Device_EnableSOFEvents();
@@ -428,25 +385,14 @@ void EVENT_USB_Device_ConfigurationChanged(void)
  *
  *  \return Boolean \c true to force the sending of the report, \c false to let the library determine if it needs to be sent
  */
-bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t *self, uint8_t *id, uint8_t type, void *data, uint16_t *size)
-{
-    /* boot protocol */
-    if (self == &_kbd_boot)
-    {
+bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t *self, uint8_t *id, uint8_t type, void *data, uint16_t *size) {
+    if (self == &_kbd_boot) {
         *size = kbd_update_boot((boot_protocol_t *)data);
         return true;
-    }
-
-    /* NKRO protocol */
-    else if (self == &_kbd_nkro)
-    {
+    } else if (self == &_kbd_nkro) {
         *size = kbd_update_nkro((nkro_protocol_t *)data);
         return true;
-    }
-
-    /* unknown, should not happen */
-    else
-    {
+    } else {
         *size = 0;
         return false;
     }
@@ -460,10 +406,8 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t *self, uint8
  *  \param[in] data  Pointer to a buffer where the received report has been stored
  *  \param[in] size  Size in bytes of the received HID report
  */
-void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t *self, uint8_t id, uint8_t type, const void *data, uint16_t size)
-{
-    /* only care about "Out" event */
-    if (size > 0)
-        if (type == HID_REPORT_ITEM_Out)
-            kbd_event_out((const uint8_t *)data);
+void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t *self, uint8_t id, uint8_t type, const void *data, uint16_t size) {
+    if (size > 0 && type == HID_REPORT_ITEM_Out) {
+        kbd_event_out((const uint8_t *)data);
+    }
 }

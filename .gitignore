@@ -2,6 +2,9 @@
 /*.hex
 /*.eep
 /*.map
+/*.bin
+/*.lss
+/*.sym
 /obj/
 *.o
 /.vscode/ipch/
